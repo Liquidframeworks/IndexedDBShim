@@ -84,7 +84,7 @@
                             "name": data.rows.item(0).name,
                             "indexList": data.rows.item(0).indexList,
                             "autoInc": data.rows.item(0).autoInc,
-                            "keyPath": idbModules.Key.decode(data.rows.item(0).keyPath)
+                            "keyPath": data.rows.item(0).keyPath && idbModules.Key.decode(data.rows.item(0).keyPath) || data.rows.item(0).keyPath
                         };
                         idbModules.DEBUG && console.log("Store properties", me.__storeProps);
                         callback(me.__storeProps);
