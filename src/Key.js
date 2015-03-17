@@ -50,6 +50,17 @@
             },
             decode: function(key){
                 return types[collations[key.substring(0, 1)]].decode(key);
+            },
+            evalKeyPath: function (keyPath, value) {
+                if (Object.prototype.toString.apply(keyPath) === '[object Array]') {
+                    var keyValue = [];
+                    for (var i = 0; i < keyPath.length; i++) {
+                        keyValue.push(eval("value['" + keyPath[i] + "']"));
+                    }
+                    return keyValue;
+                } else {
+                    return eval("value['" + keyPath + "']");
+                }
             }
         };
     }());
