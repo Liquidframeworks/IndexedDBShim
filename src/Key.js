@@ -43,6 +43,19 @@
         }
     };
 	
+
+    function evalComplexKeyPath(keyPath, value) {
+        var result, segments = keyPath.split(".");
+
+        if (segments.length === 2) {
+            // NOTE: only supporting shallow object keys
+            result = eval("value['" + segments[0] + "'] && value['" + segments[0] + "']['" + segments[1] + "']");
+        } else {
+            result = eval("value['" + segments[0] + "']");
+        }
+        return result;
+    }
+
     var Key = (function(){
         return {
             encode: function(key){
@@ -50,6 +63,17 @@
             },
             decode: function(key){
                 return types[collations[key.substring(0, 1)]].decode(key);
+            },
+            evalKeyPath: function (keyPath, value) {
+                if (Object.prototype.toString.apply(keyPath) === '[object Array]') {
+                    var keyValue = [];
+                    for (var i = 0; i < keyPath.length; i++) {
+                        keyValue.push(evalComplexKeyPath(keyPath[i], value));
+                    }
+                    return keyValue;
+                } else {
+                    return evalComplexKeyPath(keyPath, value);
+                }
             }
         };
     }());

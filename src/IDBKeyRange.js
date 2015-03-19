@@ -23,7 +23,7 @@
     IDBKeyRange.lowerBound = function(value, open){
         return new IDBKeyRange(value, undefined, open, undefined);
     };
-    IDBKeyRange.upperBound = function(value){
+    IDBKeyRange.upperBound = function(value, open){
         return new IDBKeyRange(undefined, value, undefined, open);
     };
     IDBKeyRange.bound = function(lower, upper, lowerOpen, upperOpen){

@@ -510,6 +510,19 @@ var cleanInterface = false;
         }
     };
 	
+
+    function evalComplexKeyPath(keyPath, value) {
+        var result, segments = keyPath.split(".");
+
+        if (segments.length === 2) {
+            // NOTE: only supporting shallow object keys
+            result = eval("value['" + segments[0] + "'] && value['" + segments[0] + "']['" + segments[1] + "']");
+        } else {
+            result = eval("value['" + segments[0] + "']");
+        }
+        return result;
+    }
+
     var Key = (function(){
         return {
             encode: function(key){
@@ -517,6 +530,17 @@ var cleanInterface = false;
             },
             decode: function(key){
                 return types[collations[key.substring(0, 1)]].decode(key);
+            },
+            evalKeyPath: function (keyPath, value) {
+                if (Object.prototype.toString.apply(keyPath) === '[object Array]') {
+                    var keyValue = [];
+                    for (var i = 0; i < keyPath.length; i++) {
+                        keyValue.push(evalComplexKeyPath(keyPath[i], value));
+                    }
+                    return keyValue;
+                } else {
+                    return evalComplexKeyPath(keyPath, value);
+                }
             }
         };
     }());
@@ -592,7 +616,7 @@ var cleanInterface = false;
     IDBKeyRange.lowerBound = function(value, open){
         return new IDBKeyRange(value, undefined, open, undefined);
     };
-    IDBKeyRange.upperBound = function(value){
+    IDBKeyRange.upperBound = function(value, open){
         return new IDBKeyRange(undefined, value, undefined, open);
     };
     IDBKeyRange.bound = function(lower, upper, lowerOpen, upperOpen){
@@ -878,15 +902,7 @@ var cleanInterface = false;
                             if (i < data.rows.length) {
                                 try {
                                     var value = idbModules.Sca.decode(data.rows.item(i).value);
-                                    var indexKey;
-                                    if(Object.prototype.toString.apply(keyPath) === '[object Array]') {
-                                        indexKey = [];
-                                        for (var j = 0; j < keyPath.length; j++) {
-                                            indexKey.push(eval("value['" + keyPath[j] + "']"));
-                                        }
-                                    } else {
-                                        indexKey = eval("value['" + keyPath + "']");
-                                    }
+                                    var indexKey = idbModules.Key.evalKeyPath(keyPath, value);
                                     tx.executeSql("UPDATE " + idbModules.util.quote(me.__idbObjectStore.name) + " set " + columnName + " = ? where key = ?", [idbModules.Key.encode(indexKey), data.rows.item(i).key], function(tx, data){
                                         initIndexForRow(i + 1);
                                     }, error);
@@ -1098,15 +1114,7 @@ var cleanInterface = false;
                 }
                 if (value) {
                     try {
-                        var primaryKey;
-                        if(Object.prototype.toString.apply(props.keyPath) === '[object Array]') {
-                            primaryKey = [];
-                            for (var i = 0; i < props.keyPath.length; i++) {
-                                primaryKey.push(eval("value['" + props.keyPath[i] + "']"));
-                            }
-                        } else {
-                            primaryKey = eval("value['" + props.keyPath + "']");
-                        }
+                        var primaryKey = idbModules.Key.evalKeyPath(props.keyPath, value);
                         if (primaryKey === undefined) {
                             if (props.autoInc === "true") {
                                 getNextAutoIncKey();
@@ -1152,15 +1160,7 @@ var cleanInterface = false;
         var indexes = JSON.parse(this.__storeProps.indexList);
         for (var key in indexes) {
             try {
-                var indexVal;
-                if(Object.prototype.toString.apply(indexes[key].keyPath) === '[object Array]') {
-                    indexVal = [];
-                    for (var i = 0; i < indexes[key].keyPath.length; i++) {
-                        indexVal.push(eval("value['" + indexes[key].keyPath[i] + "']"));
-                    }
-                } else {
-                    indexVal = eval("value['" + indexes[key].keyPath + "']");
-                }
+                var indexVal = idbModules.Key.evalKeyPath(indexes[key].keyPath, value);
                 paramMap[indexes[key].columnName] = idbModules.Key.encode(indexVal);
             } 
             catch (e) {

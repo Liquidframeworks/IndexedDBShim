@@ -128,15 +128,7 @@
                 }
                 if (value) {
                     try {
-                        var primaryKey;
-                        if(Object.prototype.toString.apply(props.keyPath) === '[object Array]') {
-                            primaryKey = [];
-                            for (var i = 0; i < props.keyPath.length; i++) {
-                                primaryKey.push(eval("value['" + props.keyPath[i] + "']"));
-                            }
-                        } else {
-                            primaryKey = eval("value['" + props.keyPath + "']");
-                        }
+                        var primaryKey = idbModules.Key.evalKeyPath(props.keyPath, value);
                         if (primaryKey === undefined) {
                             if (props.autoInc === "true") {
                                 getNextAutoIncKey();
@@ -182,15 +174,7 @@
         var indexes = JSON.parse(this.__storeProps.indexList);
         for (var key in indexes) {
             try {
-                var indexVal;
-                if(Object.prototype.toString.apply(indexes[key].keyPath) === '[object Array]') {
-                    indexVal = [];
-                    for (var i = 0; i < indexes[key].keyPath.length; i++) {
-                        indexVal.push(eval("value['" + indexes[key].keyPath[i] + "']"));
-                    }
-                } else {
-                    indexVal = eval("value['" + indexes[key].keyPath + "']");
-                }
+                var indexVal = idbModules.Key.evalKeyPath(indexes[key].keyPath, value);
                 paramMap[indexes[key].columnName] = idbModules.Key.encode(indexVal);
             } 
             catch (e) {
