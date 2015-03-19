@@ -644,19 +644,29 @@ var cleanInterface = false;
         recordsToLoad = recordsToLoad || 1;
 
         var me = this;
+
+        var tableProps = me.source.transaction.db.__storeProperties[me.__idbObjectStore.name];
+        var keyColumnProps = tableProps.indexList && tableProps.indexList[me.__keyColumnName] && tableProps.indexList[me.__keyColumnName].optionalParams;
+        var multiEntry = keyColumnProps && keyColumnProps.multiEntry;
+
         var sql = ["SELECT * FROM ", idbModules.util.quote(me.__idbObjectStore.name)];
         var sqlValues = [];
         sql.push("WHERE ", me.__keyColumnName, " NOT NULL");
         if (me.__range && (me.__range.lower !== undefined || me.__range.upper !== undefined )) {
             sql.push("AND");
-            if (me.__range.lower !== undefined) {
-                sql.push(me.__keyColumnName + (me.__range.lowerOpen ? " >" : " >= ") + " ?");
-                sqlValues.push(idbModules.Key.encode(me.__range.lower));
-            }
-            (me.__range.lower !== undefined && me.__range.upper !== undefined) && sql.push("AND");
-            if (me.__range.upper !== undefined) {
-                sql.push(me.__keyColumnName + (me.__range.upperOpen ? " < " : " <= ") + " ?");
-                sqlValues.push(idbModules.Key.encode(me.__range.upper));
+            if (multiEntry && me.__range.lower !== undefined) {
+                sql.push(me.__keyColumnName + " like ?");
+                sqlValues.push('%' + me.__range.lower + '%');
+            } else {
+                if (me.__range.lower !== undefined) {
+                    sql.push(me.__keyColumnName + (me.__range.lowerOpen ? " >" : " >= ") + " ?");
+                    sqlValues.push(idbModules.Key.encode(me.__range.lower));
+                }
+                (me.__range.lower !== undefined && me.__range.upper !== undefined) && sql.push("AND");
+                if (me.__range.upper !== undefined) {
+                    sql.push(me.__keyColumnName + (me.__range.upperOpen ? " < " : " <= ") + " ?");
+                    sqlValues.push(idbModules.Key.encode(me.__range.upper));
+                }
             }
         }
         if (typeof key !== "undefined") {
@@ -868,7 +878,15 @@ var cleanInterface = false;
                             if (i < data.rows.length) {
                                 try {
                                     var value = idbModules.Sca.decode(data.rows.item(i).value);
-                                    var indexKey = eval("value['" + keyPath + "']");
+                                    var indexKey;
+                                    if(Object.prototype.toString.apply(keyPath) === '[object Array]') {
+                                        indexKey = [];
+                                        for (var j = 0; j < keyPath.length; j++) {
+                                            indexKey.push(eval("value['" + keyPath[j] + "']"));
+                                        }
+                                    } else {
+                                        indexKey = eval("value['" + keyPath + "']");
+                                    }
                                     tx.executeSql("UPDATE " + idbModules.util.quote(me.__idbObjectStore.name) + " set " + columnName + " = ? where key = ?", [idbModules.Key.encode(indexKey), data.rows.item(i).key], function(tx, data){
                                         initIndexForRow(i + 1);
                                     }, error);
@@ -1036,7 +1054,7 @@ var cleanInterface = false;
                             "name": data.rows.item(0).name,
                             "indexList": data.rows.item(0).indexList,
                             "autoInc": data.rows.item(0).autoInc,
-                            "keyPath": data.rows.item(0).keyPath
+                            "keyPath": data.rows.item(0).keyPath && idbModules.Key.decode(data.rows.item(0).keyPath) || data.rows.item(0).keyPath
                         };
                         idbModules.DEBUG && console.log("Store properties", me.__storeProps);
                         callback(me.__storeProps);
@@ -1080,7 +1098,15 @@ var cleanInterface = false;
                 }
                 if (value) {
                     try {
-                        var primaryKey = eval("value['" + props.keyPath + "']");
+                        var primaryKey;
+                        if(Object.prototype.toString.apply(props.keyPath) === '[object Array]') {
+                            primaryKey = [];
+                            for (var i = 0; i < props.keyPath.length; i++) {
+                                primaryKey.push(eval("value['" + props.keyPath[i] + "']"));
+                            }
+                        } else {
+                            primaryKey = eval("value['" + props.keyPath + "']");
+                        }
                         if (primaryKey === undefined) {
                             if (props.autoInc === "true") {
                                 getNextAutoIncKey();
@@ -1126,7 +1152,16 @@ var cleanInterface = false;
         var indexes = JSON.parse(this.__storeProps.indexList);
         for (var key in indexes) {
             try {
-                paramMap[indexes[key].columnName] = idbModules.Key.encode(eval("value['" + indexes[key].keyPath + "']"));
+                var indexVal;
+                if(Object.prototype.toString.apply(indexes[key].keyPath) === '[object Array]') {
+                    indexVal = [];
+                    for (var i = 0; i < indexes[key].keyPath.length; i++) {
+                        indexVal.push(eval("value['" + indexes[key].keyPath[i] + "']"));
+                    }
+                } else {
+                    indexVal = eval("value['" + indexes[key].keyPath + "']");
+                }
+                paramMap[indexes[key].columnName] = idbModules.Key.encode(indexVal);
             } 
             catch (e) {
                 error(e);
@@ -1507,7 +1542,7 @@ var cleanInterface = false;
             var sql = ["CREATE TABLE", idbModules.util.quote(storeName), "(key BLOB", createOptions.autoIncrement ? ", inc INTEGER PRIMARY KEY AUTOINCREMENT" : "PRIMARY KEY", ", value BLOB)"].join(" ");
             idbModules.DEBUG && console.log(sql);
             tx.executeSql(sql, [], function(tx, data){
-                tx.executeSql("INSERT INTO __sys__ VALUES (?,?,?,?)", [storeName, createOptions.keyPath, createOptions.autoIncrement ? true : false, "{}"], function(){
+                tx.executeSql("INSERT INTO __sys__ VALUES (?,?,?,?)", [storeName, createOptions.keyPath && idbModules.Key.encode(createOptions.keyPath), createOptions.autoIncrement ? true : false, "{}"], function(){
                     result.__setReadyState("createObjectStore", true);
                     success(result);
                 }, error);
