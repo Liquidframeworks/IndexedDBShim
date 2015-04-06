@@ -43,7 +43,7 @@
                 };
                 // For this index, first create a column
                 me.__idbObjectStore.__storeProps.indexList = JSON.stringify(idxList);
-                var sql = ["ALTER TABLE", idbModules.util.quote(me.__idbObjectStore.name), "ADD", columnName, "BLOB"].join(" ");
+                var sql = ["ALTER TABLE", idbModules.util.quote(me.__idbObjectStore.name), "ADD", idbModules.util.quote(columnName), "BLOB"].join(" ");
                 idbModules.DEBUG && console.log(sql);
                 tx.executeSql(sql, [], function(tx, data){
                     // Once a column is created, put existing records into the index
