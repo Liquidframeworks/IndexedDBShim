@@ -38,3 +38,5 @@ To print out debug status, use `window.shimIndexedDB.__debug(true)`
 Contributing
 ============
 Pull requests or Bug reports welcome !!
+
+© 2016 LiquidFrameworks, Inc. All rights reserved.
